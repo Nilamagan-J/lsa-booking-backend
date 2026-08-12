@@ -1,0 +1,66 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: lsa_booking_db
+          POSTGRES_USER: lsa_backend
+          POSTGRES_PASSWORD: lsa_backend_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U lsa_backend -d lsa_booking_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run migrations
+        env:
+          DJANGO_SECRET_KEY: django-ci-secret-key
+          DEBUG: "False"
+          DB_NAME: lsa_booking_db
+          DB_USER: lsa_backend
+          DB_PASSWORD: lsa_backend_dev
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+        run: |
+          python manage.py migrate
+
+      - name: Run tests
+        env:
+          DJANGO_SECRET_KEY: django-ci-secret-key
+          DEBUG: "False"
+          DB_NAME: lsa_booking_db
+          DB_USER: lsa_backend
+          DB_PASSWORD: lsa_backend_dev
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+        run: |
+          pytest
