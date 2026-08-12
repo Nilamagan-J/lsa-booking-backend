@@ -4,6 +4,7 @@ from .views import (
     BookingCreateView,
     LSAResourceListView,
     MockPaymentView,
+    PaymentWebhookView,
 )
 
 
@@ -22,5 +23,10 @@ urlpatterns = [
         "mock-payment/",
         MockPaymentView.as_view(),
         name="mock-payment",
+    ),
+    path(
+        "payments/webhook/",
+        PaymentWebhookView.as_view(),
+        name="payment-webhook",
     ),
 ]
