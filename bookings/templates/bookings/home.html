@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HabotConnect — LSA Booking</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #1f2937;
+        }
+
+        header {
+            background: #1f2937;
+            color: white;
+            padding: 24px;
+        }
+
+        header h1 {
+            margin: 0 0 6px;
+        }
+
+        header p {
+            margin: 0;
+            color: #d1d5db;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        section {
+            background: white;
+            padding: 24px;
+            margin-bottom: 24px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        .filter {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input,
+        select,
+        textarea,
+        button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 90px;
+            resize: vertical;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .lsa-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 15px;
+        }
+
+        .lsa-card {
+            border: 1px solid #e5e7eb;
+            padding: 16px;
+            border-radius: 8px;
+        }
+
+        .lsa-card h3 {
+            margin-top: 0;
+        }
+
+        .available {
+            color: #15803d;
+            font-weight: bold;
+        }
+
+        .unavailable {
+            color: #b91c1c;
+            font-weight: bold;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .full {
+            grid-column: 1 / -1;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+            white-space: pre-wrap;
+        }
+
+        .success {
+            display: block !important;
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .error {
+            display: block !important;
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        @media (max-width: 700px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .full {
+                grid-column: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>HabotConnect</h1>
+    <p>Learning Support Assistant Booking System</p>
+</header>
+
+<main>
+
+    <section>
+        <h2>Available LSAs</h2>
+
+        <div class="filter">
+            <input
+                type="text"
+                id="skillFilter"
+                placeholder="Filter by skill, e.g. Autism"
+            >
+
+            <button onclick="loadLSAs()">
+                Search
+            </button>
+        </div>
+
+        <div id="lsaList" class="lsa-list">
+            Loading LSAs...
+        </div>
+    </section>
+
+    <section>
+        <h2>Create Booking</h2>
+
+        <form id="bookingForm">
+
+            <div class="form-grid">
+
+                <div>
+                    <label for="parent">Parent ID</label>
+                    <input
+                        type="number"
+                        id="parent"
+                        value="1"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="lsa">LSA ID</label>
+                    <input
+                        type="number"
+                        id="lsa"
+                        value="1"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="bookingDate">Booking Date</label>
+                    <input
+                        type="date"
+                        id="bookingDate"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="startTime">Start Time</label>
+                    <input
+                        type="time"
+                        id="startTime"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="endTime">End Time</label>
+                    <input
+                        type="time"
+                        id="endTime"
+                        required
+                    >
+                </div>
+
+                <div class="full">
+                    <label for="notes">Notes</label>
+                    <textarea
+                        id="notes"
+                        placeholder="Describe the support required"
+                    ></textarea>
+                </div>
+
+                <div class="full">
+                    <button type="submit">
+                        Create Booking
+                    </button>
+                </div>
+
+            </div>
+
+        </form>
+
+        <div id="result"></div>
+    </section>
+
+</main>
+
+<script>
+    async function loadLSAs() {
+        const skill = document.getElementById("skillFilter").value.trim();
+
+        let url = "/api/v1/lsa/resources/";
+
+        if (skill) {
+            url += "?skill=" + encodeURIComponent(skill);
+        }
+
+        const list = document.getElementById("lsaList");
+
+        list.innerHTML = "Loading...";
+
+        try {
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error("Could not load LSA resources.");
+            }
+
+            const lsas = await response.json();
+
+            if (lsas.length === 0) {
+                list.innerHTML = "<p>No LSAs found.</p>";
+                return;
+            }
+
+            list.innerHTML = lsas.map(lsa => `
+                <div class="lsa-card">
+                    <h3>${lsa.name}</h3>
+                    <p><strong>ID:</strong> ${lsa.id}</p>
+                    <p><strong>Specialization:</strong> ${lsa.specialization}</p>
+                    <p><strong>Hourly Rate:</strong> $${lsa.hourly_rate}</p>
+                    <p class="${lsa.is_available ? "available" : "unavailable"}">
+                        ${lsa.is_available ? "Available" : "Unavailable"}
+                    </p>
+                </div>
+            `).join("");
+
+        } catch (error) {
+            list.innerHTML = `<p>${error.message}</p>`;
+        }
+    }
+
+
+    document
+        .getElementById("bookingForm")
+        .addEventListener("submit", async function(event) {
+
+            event.preventDefault();
+
+            const result = document.getElementById("result");
+
+            result.className = "";
+            result.style.display = "block";
+            result.textContent = "Creating booking...";
+
+            const payload = {
+                parent: Number(document.getElementById("parent").value),
+                lsa: Number(document.getElementById("lsa").value),
+                booking_date: document.getElementById("bookingDate").value,
+                start_time: document.getElementById("startTime").value + ":00",
+                end_time: document.getElementById("endTime").value + ":00",
+                notes: document.getElementById("notes").value
+            };
+
+            try {
+                const response = await fetch(
+                    "/api/v1/bookings/",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(payload)
+                    }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.error ||
+                        JSON.stringify(data)
+                    );
+                }
+
+                result.className = "success";
+
+                result.textContent =
+                    "Booking created successfully!\n\n" +
+                    "Booking ID: " + data.booking.id + "\n" +
+                    "Booking Status: " + data.booking.status + "\n" +
+                    "Payment Status: " + data.payment.status + "\n" +
+                    "Transaction ID: " + data.payment.transaction_id;
+
+            } catch (error) {
+
+                result.className = "error";
+                result.textContent =
+                    "Booking failed:\n" + error.message;
+            }
+        });
+
+
+    loadLSAs();
+</script>
+
+</body>
+</html>

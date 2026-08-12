@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from .models import Booking, LSAProfile, Payment
 from .serializers import BookingSerializer, LSAProfileSerializer
 from .services import PaymentServiceError, initiate_payment
-
+from django.shortcuts import render
 
 class BookingCreateView(APIView):
     def post(self, request):
@@ -157,3 +157,6 @@ class PaymentWebhookView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+def home(request):
+    return render(request, "bookings/home.html")
