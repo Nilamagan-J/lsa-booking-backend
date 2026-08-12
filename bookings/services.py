@@ -18,13 +18,24 @@ def initiate_payment(booking: Booking) -> dict:
     timeout = int(os.getenv("PAYMENT_API_TIMEOUT", "5"))
 
     if not payment_url:
-        raise PaymentServiceError("Payment API URL is not configured.")
+        logger.error(
+            "Payment API URL is not configured for booking %s",
+            booking.id,
+        )
+        raise PaymentServiceError(
+            "Payment API URL is not configured."
+        )
 
     payload = {
         "booking_id": booking.id,
         "amount": str(booking.lsa.hourly_rate),
         "currency": "USD",
     }
+
+    logger.info(
+        "Initiating payment for booking %s",
+        booking.id,
+    )
 
     try:
         response = requests.post(
@@ -66,9 +77,13 @@ def initiate_payment(booking: Booking) -> dict:
         ) from exc
 
     transaction_id = data.get("transaction_id")
-    status = data.get("status")
+    payment_status = data.get("status")
 
-    if not transaction_id or status not in {"success", "pending", "failed"}:
+    if not transaction_id or payment_status not in {
+        "success",
+        "pending",
+        "failed",
+    }:
         logger.error(
             "Unexpected payment response for booking %s: %s",
             booking.id,
@@ -86,5 +101,5 @@ def initiate_payment(booking: Booking) -> dict:
 
     return {
         "transaction_id": transaction_id,
-        "status": status,
+        "status": payment_status,
     }

@@ -54,6 +54,15 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"{self.parent.name} - {self.lsa.name} - {self.booking_date}"
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["lsa", "booking_date"],
+                name="booking_lsa_date_idx",
+            ),
+        ]
+
 class Payment(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
