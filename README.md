@@ -2,7 +2,7 @@
 
 A Django REST API for managing Learning Support Assistant (LSA) bookings, availability, and payment processing.
 
-This project was developed as a backend evaluation project demonstrating Python, Django, Django REST Framework, PostgreSQL, REST API design, validation, database relationships, query optimization, external HTTP integration, error handling, logging, automated testing, GitHub Actions CI, and documentation.
+This project was developed as a backend evaluation project demonstrating Python, Django, Django REST Framework, PostgreSQL, REST API design, validation, database relationships, query optimization, external HTTP integration, error handling, logging, automated testing, GitHub Actions CI, and technical documentation.
 
 ## Features
 
@@ -21,6 +21,7 @@ This project was developed as a backend evaluation project demonstrating Python,
 * Database query optimization
 * Automated tests with pytest
 * GitHub Actions CI
+* Simple HTML frontend for API demonstration
 
 ## Technology Stack
 
@@ -77,7 +78,6 @@ The application contains four main entities:
 Parent 1 ─────────── * Booking * ─────────── 1 LSAProfile
                          │
                          │ 1
-                         │
                          ▼
                        Payment
 ```
@@ -116,6 +116,24 @@ Stores payment information associated with a booking:
 * transaction ID
 * timestamps
 
+## Architecture and Design Decisions
+
+The project uses Django REST Framework to keep the API structure clear and maintainable while using Django ORM for relational database operations.
+
+The application separates responsibilities between serializers, views, and the payment service:
+
+* Serializers handle request validation and booking-related validation.
+* Views handle HTTP requests and responses.
+* The payment service handles communication with the external payment endpoint and isolates external-service errors from the API layer.
+
+PostgreSQL was selected as the relational database because the system contains clear relationships between parents, LSAs, bookings, and payments.
+
+A composite database index on `(lsa, booking_date)` supports the frequent booking-conflict lookup.
+
+`select_related("booking")` is used by the payment webhook because the payment and its associated booking are required together, reducing unnecessary database queries.
+
+A mock payment endpoint is used instead of a real payment gateway because the project is an evaluation backend and does not require real financial processing.
+
 ## Environment Configuration
 
 Create a `.env` file in the project root.
@@ -132,7 +150,7 @@ DB_PASSWORD=your-database-password
 DB_HOST=localhost
 DB_PORT=5432
 
-PAYMENT_API_URL=http://127.0.0.1:8000/api/mock-payment/
+PAYMENT_API_URL=http://127.0.0.1:8000/api/v1/mock-payment/
 PAYMENT_API_TIMEOUT=5
 ```
 
@@ -199,6 +217,27 @@ Example request:
 
 A successful request creates a booking and initiates payment.
 
+Example successful response:
+
+```json
+{
+    "booking": {
+        "id": 3,
+        "parent": 1,
+        "lsa": 1,
+        "booking_date": "2026-08-16",
+        "start_time": "14:00:00",
+        "end_time": "15:00:00",
+        "status": "confirmed",
+        "notes": "Mathematics support"
+    },
+    "payment": {
+        "transaction_id": "txn_example",
+        "status": "success"
+    }
+}
+```
+
 ### List Available LSAs
 
 ```http
@@ -210,6 +249,8 @@ Filter by specialization:
 ```http
 GET /api/v1/lsa/resources/?skill=Autism
 ```
+
+The response includes available LSA information such as name, specialization, hourly rate, and availability.
 
 ### Payment Webhook
 
@@ -226,17 +267,24 @@ Example request:
 }
 ```
 
+Supported payment statuses include:
+
+* `success`
+* `failed`
+
 ## Booking Validation
 
 The API validates:
 
 * Parent existence
 * LSA existence
+* required fields
 * booking time range
 * booking conflicts
-* required fields
 
-Overlapping bookings for the same LSA are rejected.
+An end time must be after the start time.
+
+Overlapping bookings for the same LSA are rejected rather than allowing two bookings at the same time.
 
 ## Payment Integration
 
@@ -251,6 +299,7 @@ The payment service:
 5. Handles invalid JSON responses.
 6. Validates the payment response.
 7. Returns the transaction ID and payment status.
+8. Logs relevant payment events and failures.
 
 Payment failures are converted into application-level errors instead of exposing low-level HTTP exceptions to the API client.
 
@@ -272,7 +321,15 @@ Payment → failed
 Booking → cancelled
 ```
 
-The webhook uses `select_related("booking")` to efficiently retrieve the related booking.
+The webhook uses:
+
+```python
+select_related("booking")
+```
+
+to efficiently retrieve the related booking.
+
+Unknown transactions and invalid payment statuses return controlled API errors.
 
 ## Query Optimization
 
@@ -284,13 +341,17 @@ A composite database index was added for:
 (lsa, booking_date)
 ```
 
+This supports the common lookup pattern used when checking whether an LSA already has a booking on a particular date.
+
 The payment webhook uses:
 
 ```python
 select_related("booking")
 ```
 
-to efficiently retrieve the related booking and avoid unnecessary additional queries.
+to retrieve the payment and its related booking efficiently and avoid unnecessary additional queries.
+
+This addresses the N+1 query problem for this payment-to-booking access pattern.
 
 ## Logging
 
@@ -372,6 +433,20 @@ The application handles:
 * invalid webhook statuses
 
 The API returns controlled HTTP responses rather than exposing internal exceptions.
+
+## Frontend Demonstration
+
+A simple HTML frontend is included to demonstrate the backend API interactively.
+
+The homepage allows users to:
+
+* view available LSAs
+* filter LSAs by specialization
+* view LSA details
+* create bookings
+* observe the booking/payment flow
+
+The frontend is intentionally lightweight because the primary purpose of the project is demonstrating backend development.
 
 ## Development
 
